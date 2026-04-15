@@ -9,8 +9,8 @@ import json
 
 with open("params.toml", "rb") as f:
     config = tomllib.load(f)
-FILES_PATH = config["paths"]["path_raw_sacfa_tables"]
-TABLES_THAT_MATTER = config["sacfa-pars"]["sacfa_tables"]
+FILES_PATH = config["paths"]["data_path"]
+TABLES_THAT_MATTER = config["dbfs-pars"]["dbfs_tables"]
 
 with open('logs/sacfa-move-log.json', 'r') as f:
     tables_log = json.load(f)
@@ -30,7 +30,7 @@ for backup in tables_log:
         continue
     dbfs_prefix = backup['files_prefix']
     for table_name in TABLES_THAT_MATTER:
-        dbf_path = Path(FILES_PATH) / f"{dbfs_prefix}-{table_name}.dbf"
+        dbf_path = Path(FILES_PATH) / "tables-raw" / f"{dbfs_prefix}-{table_name}-1.dbf"
         table = DBF(dbf_path, load=False)
         filelines.append(f"[{table_name}]")
         for field in table.fields:

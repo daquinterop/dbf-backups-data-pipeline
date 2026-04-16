@@ -1,6 +1,6 @@
 # Some scripts to process DBFs files from desktop software backups.
 
-These scripts are to solve a specific problem. Consider the case of a desktop-based data-collection platform. This platform receives input data from an user and store it locally in DBF files. All users create a backup of their data, by zipping those dbfs files. We have several instances or batches of those backups. Then, the DBF files are stored following the next path structure:
+These scripts are to solve a specific problem. Consider the case of a desktop-based data-collection platform. This platform receives input data from an user and store it locally in DBF files. All users create a backup of their data by zipping those dbfs files. We have several instances or batches of those backups. Then, the DBF files are stored following the next path structure:
 
 ```
 raw_data_path

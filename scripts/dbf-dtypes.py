@@ -11,8 +11,9 @@ with open("params.toml", "rb") as f:
     config = tomllib.load(f)
 FILES_PATH = config["paths"]["data_path"]
 TABLES_THAT_MATTER = config["dbfs-pars"]["dbfs_tables"]
+base_path = Path(__file__).resolve().parent.parent
 
-with open('logs/sacfa-move-log.json', 'r') as f:
+with open(base_path / 'logs' / 'sacfa-move-log.json', 'r') as f:
     tables_log = json.load(f)
 
 dtype_map = { # dbf types to pandas dtypes
@@ -41,7 +42,7 @@ for backup in tables_log:
         filelines.append("\n")
     break
 
-with open('dbf-dtypes.toml', 'w') as f:
+with open(base_path / 'dbf-dtypes.toml', 'w') as f:
     for line in filelines: f.write(line + "\n")
 
 for l in filelines: print(l)

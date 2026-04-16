@@ -16,6 +16,7 @@ import hashlib
 import re
 import ast
 import logging
+import os
 
 logging.basicConfig(
     level=logging.INFO,
@@ -23,8 +24,9 @@ logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S"
 )
 logger = logging.getLogger(__name__)
+base_path = Path(__file__).resolve().parent.parent
 
-with open("params.toml", "rb") as f:
+with open(base_path / "params.toml", "rb") as f:
     config = tomllib.load(f)
 FILES_PATH = config["paths"]["data_path"]
 TABLES_THAT_MATTER = config["dbfs-pars"]["dbfs_tables"]
@@ -32,12 +34,13 @@ TABLES_THAT_MATTER = config["dbfs-pars"]["dbfs_tables"]
 #     TABLES_THAT_MATTER.remove("fincas2014")
 MUST_TABLES = ["ubica", "lotesfin", "infculti", "insaplica"]
 
+
 # dbf types to pandas dtypes generated in a previous step (dbf-dtypes.py)
-with open('dbf-dtypes.toml', 'rb') as f:
+with open(base_path / 'dbf-dtypes.toml', 'rb') as f:
     dtypes_config = tomllib.load(f)
 
 # The log file generated in the previous step (dbf-move.py)
-with open('logs/sacfa-move-log.json', 'r') as f:
+with open(base_path / 'logs'/ 'sacfa-move-log.json', 'r') as f:
     tables_log = json.load(f)
 
 
@@ -133,8 +136,8 @@ def process_backup(backup):
         # which can have several different inputs applied at once, e.g., a mix 
         # of pesticides.
         if table.get('idx', False):
-            idxs = df[table['idx']].astype(str).apply(
-                lambda x: '-'.join(x), axis=1
+            idxs = df[table['idx']].apply(
+                lambda x: '-'.join(x.values.astype(str)), axis=1
             )
         else:
             idxs = df.index.astype(str)
@@ -157,9 +160,9 @@ def process_backup(backup):
             df = backup_tables[table_name]
             map_df = backup_tables[link['link']].copy()
             map_df = map_df.reset_index(drop=False)
-            map_df.index = map_df[link['from']].astype(str).apply(lambda x: '-'.join(x), axis=1)
+            map_df.index = map_df[link['from']].apply(lambda x: '-'.join(x.values.astype(str)), axis=1)
             df[link['link']] = \
-                df[link['to']].astype(str).apply(lambda x: '-'.join(x), axis=1).map(
+                df[link['to']].apply(lambda x: '-'.join(x.values.astype(str)), axis=1).map(
                 map_df['index'].drop_duplicates()
             )
     return backup_tables
@@ -194,7 +197,7 @@ if __name__ == '__main__':
             Path(FILES_PATH) / "tables-raw-parquet" / f"{table_name}.parquet", 
             index=True
         )
-        logger.info(f"Saved table {table_name}")
+        logger.info(f"Saved table {table_name}, {len(tables_dict[table_name])} records")
 
     tables_dict['Farm'][['COFINCA']].to_csv("cofincas.csv", index=True)
     print()

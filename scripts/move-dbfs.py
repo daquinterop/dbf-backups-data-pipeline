@@ -23,6 +23,7 @@ with open("params.toml", "rb") as f:
     config = tomllib.load(f)
 raw_data_path = config["paths"]["raw_data_path"]
 path_raw_dbfs_tables = config["paths"]["data_path"]
+base_path = Path(__file__).resolve().parent.parent
 
 dbfs_folders = config["dbfs-pars"]["dbfs_folders"]
 dbfs_tables = config["dbfs-pars"]["dbfs_tables"]
@@ -42,8 +43,8 @@ def remove_espanol(input_str):
     return "".join([c for c in nfkd_form if not unicodedata.combining(c)])
 
 
-if not os.path.exists('logs/'):
-    os.makedirs('logs/')
+if not os.path.exists(base_path / 'logs/'):
+    os.makedirs(base_path / 'logs/')
 agronomos_log = {} # A log of agronomos for each municipio
 tables_log = [] # A log for each backup folder
 
@@ -96,8 +97,8 @@ all_tables_in_backups_count = sum([all([len(t[k]) > 0 for k in dbfs_tables]) for
 print(f"Total backups processed: {total_backups_count}")
 print(f"Backups with all tables: {all_tables_in_backups_count} ({all_tables_in_backups_count/total_backups_count:.2%})")
 
-with open('logs/sacfa-move-log.json', 'w') as f:
+with open(base_path / 'logs' / 'sacfa-move-log.json', 'w') as f:
     json.dump(tables_log, f, indent=4)
 
-with open('logs/sacfa-agronomos-log.json', 'w') as f:
+with open(base_path / 'logs' / 'acfa-agronomos-log.json', 'w') as f:
     json.dump([agronomos_log], f, indent=4)

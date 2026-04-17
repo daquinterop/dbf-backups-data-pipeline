@@ -15,20 +15,23 @@ from pathlib import Path
 import hashlib
 import re
 import ast
+from utils import get_logger, dbf_table_to_pandas
 import logging
 import os
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S"
-)
-logger = logging.getLogger(__name__)
 base_path = Path(__file__).resolve().parent.parent
+output_path = base_path / "output"
+
+logger = get_logger(dict(
+    filename='logs/dbf-merge.log',
+    filemode='w',
+    level=logging.INFO
+))
+
 
 with open(base_path / "params.toml", "rb") as f:
     config = tomllib.load(f)
-FILES_PATH = config["paths"]["data_path"]
+FILES_PATH = Path(config["paths"]["data_path"])
 TABLES_THAT_MATTER = config["dbfs-pars"]["dbfs_tables"]
 # if "fincas2014" in TABLES_THAT_MATTER:
 #     TABLES_THAT_MATTER.remove("fincas2014")
@@ -36,27 +39,13 @@ MUST_TABLES = ["ubica", "lotesfin", "infculti", "insaplica"]
 
 
 # dbf types to pandas dtypes generated in a previous step (dbf-dtypes.py)
-with open(base_path / 'dbf-dtypes.toml', 'rb') as f:
+with open(output_path / 'dbf-dtypes.toml', 'rb') as f:
     dtypes_config = tomllib.load(f)
 
 # The log file generated in the previous step (dbf-move.py)
-with open(base_path / 'logs'/ 'sacfa-move-log.json', 'r') as f:
+with open(output_path / 'dbfs-moved-backups.json', 'r') as f:
     tables_log = json.load(f)
 
-
-def dbf_table_to_pandas(dbf_path):
-    try:
-        table = DBF(
-            dbf_path,
-            encoding='ISO-8859-1'
-        )
-        df = pd.DataFrame.from_records(list(table.records))
-    except DBFNotFound:
-        logger.warning(f"DBF file not found: {dbf_path}. Skipping this file.")
-        return pd.DataFrame() 
-    except MissingMemoFile:
-        return
-    return df
 
 def create_32_char_id(input_string):
     encoded_string = input_string.encode('utf-8')    
@@ -77,7 +66,9 @@ def subset_columns(df, table_props):
         if not all([i in table_props.get('column_keyerror_catch', [2]) for i in error_keys]):
             raise KeyError(e)
         logger.info(f"Columns not found in {table_props['name']}: {error_keys}")
-        return df[[c for c in cols if c not in error_keys]]
+        for col in error_keys:
+            df[col] = np.nan
+        return df[cols]
 
 def process_backup(backup):
     """
@@ -92,8 +83,8 @@ def process_backup(backup):
     backup_tables = {}
     dbfs_prefix = backup['files_prefix']
     for table in config['table']:
-        dbf_path = Path(FILES_PATH) / 'tables-raw' / f"{dbfs_prefix}-{table['base']['name']}-1.dbf"
-        df = dbf_table_to_pandas(dbf_path)
+        dbf_path = FILES_PATH / 'tables-raw' / f"{dbfs_prefix}-{table['base']['name']}-1.dbf"
+        df = dbf_table_to_pandas(dbf_path, logger)
         mandatory_table = table['mandatory']
         if df.empty:
             if mandatory_table:
@@ -111,8 +102,8 @@ def process_backup(backup):
         })
         join_tables = table.get('join', [])
         for table_join in join_tables:
-            dbf_path = Path(FILES_PATH) / "tables-raw" / f"{dbfs_prefix}-{table_join['name']}-1.dbf"
-            join_df = dbf_table_to_pandas(dbf_path)
+            dbf_path = FILES_PATH / "tables-raw" / f"{dbfs_prefix}-{table_join['name']}-1.dbf"
+            join_df = dbf_table_to_pandas(dbf_path, logger)
             if join_df.empty:
                 logger.warning(f"Join table {dbf_path} is empty. Skipping join.")
                 continue
@@ -187,17 +178,23 @@ if __name__ == '__main__':
             if not tables_dict.get(k, False):
                 tables_dict[k] = []
             tables_dict[k].append(v)
-            
+    
+    tables_summary = ""
     for table_name, tables in tables_dict.items():
         tables_dict[table_name] = pd.concat(tables)
         tables_dict[table_name]['tmp_col'] = tables_dict[table_name].index
         tables_dict[table_name] = tables_dict[table_name].drop_duplicates()
         tables_dict[table_name] = tables_dict[table_name].drop(columns=['tmp_col'])
         tables_dict[table_name].to_parquet(
-            Path(FILES_PATH) / "tables-raw-parquet" / f"{table_name}.parquet", 
+            FILES_PATH / "tables-raw-parquet" / f"{table_name}.parquet", 
             index=True
         )
         logger.info(f"Saved table {table_name}, {len(tables_dict[table_name])} records")
-
-    tables_dict['Farm'][['COFINCA']].to_csv("cofincas.csv", index=True)
+        tables_summary += f"{table_name}\n"
+        tables_summary += tables_dict[table_name].describe(include='all').T.to_string()
+        tables_summary += "\n\n"
+    
+    tables_dict['Farm'][['COFINCA']].to_csv(output_path / "cofincas.csv", index=True)
+    with open(output_path / "raw-parquets-summary.txt", "w") as f:
+        f.write(tables_summary)
     print()

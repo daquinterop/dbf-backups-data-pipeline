@@ -20,6 +20,8 @@ def get_logger(kwargs=dict(level=logging.INFO,)):
 
 def remove_espanol(input_str):
     """Recplaces Spanish accents and special characters from a string."""
+    if not isinstance(input_str, str):
+        return input_str
     nfkd_form = unicodedata.normalize('NFKD', input_str)
     return "".join([c for c in nfkd_form if not unicodedata.combining(c)])
 

@@ -30,38 +30,44 @@ name = "Table A" # Name of the table. Not necesarilly in dbfs_tables
 idx = ["col1", "col2"]
 mandatory = true # IF this table is missing, the backup is not processed
     [table.base] # The base table to use
-    name = "table_1" # from dbf_tables
-    columns = [
-        "col1", "col2", "col_3" 
-    ]
+        name = "table_1" # from dbf_tables
+        columns = [
+            "col1", "col2", "col_3" 
+        ]
     [[table.join]] # The tables to be joined to this table
-    name = "table_2"
-    idx = "col1" # Join table_2 by mapping col1 in table_2 to col2 in table_1
-    on = "col2"
-    columns = [ # Columns to include
-        "col1", "col2", "col3"
-    ]
-    column_keyerror_catch = ["col3"] # A column we can miss. i.e., if that column from columns is missing, it's ok
+        name = "table_2"
+        idx = "col1" # Join table_2 by mapping col1 in table_2 to col2 in table_1
+        on = "col2"
+        columns = [ # Columns to include
+            "col1", "col2", "col3"
+        ]
+        column_keyerror_catch = ["col3"] # A column we can miss. i.e., if that column from columns is missing, it's ok
+    [[table.link]] # Tables to connect to this one. Indexes from those tables will be added as columns
+        link = 'TableB'
+        from = ["coln"]
+        to = ["coln"]
+    [[table.cleaning]] # Define the cleaning pipeline as a list of functions and kwargs
+        function = 'string_homogenization'
 
 [[table]]
 name = "Table B"
 mandatory = false
 idx = ["col"]
     [table.base]
-    name = ""
-    columns = [
-    ]
+        name = ""
+        columns = [
+        ]
     [[table.join]]
-    name = ""
-    idx = ""
-    on = ""
-    columns = [""]
-
-[relationships] # Connections between tables
-[[relationships.TableA]] 
-    link = "TableB" # Other table to link
-    from = ["col_1"] # Field to consider as index in the table to link
-    to = ["col_2"] # Field in the table to map 
+        name = ""
+        idx = ""
+        on = ""
+        columns = [""]
+    [[table.link]]
+        link = 'TableB'
+        from = ["coln"]
+        to = ["coln"]
+    [[table.cleaning]]
+        function = 'string_homogenization'
 
 [control]
 skip_backups = [

@@ -132,9 +132,12 @@ def process_backup(backup):
             )
         else:
             idxs = df.index.astype(str)
-        municipio, agronomo = backup['files_prefix'].split("-")[1:3]
+        admin_unit, user = backup['files_prefix'].split("-")[1:3]
+        if table.get('add_user_col', False):
+            df['user'] = user
+            df['admin_unit'] = admin_unit
         idxs = [
-            create_32_char_id(f"{municipio}-{agronomo}-{i}") 
+            create_32_char_id(f"{admin_unit}-{user}-{i}") 
             for i in idxs
         ]
         df.index = idxs
@@ -142,13 +145,12 @@ def process_backup(backup):
         backup_tables[table['name']] = df
         
     # Link tables by creating columns with indexes of the table to link.
-    for table_name, links in config['relationships'].items():
-        if not table_name in backup_tables:
-            continue
-        for link in links:
+    for table in config['table']:
+        table_name = table['name']
+        df = backup_tables[table_name]
+        for link in table['link']:
             if not link['link'] in backup_tables:
                 continue
-            df = backup_tables[table_name]
             map_df = backup_tables[link['link']].copy()
             map_df = map_df.reset_index(drop=False)
             map_df.index = map_df[link['from']].apply(lambda x: '-'.join(x.values.astype(str)), axis=1)
@@ -156,7 +158,7 @@ def process_backup(backup):
                 df[link['to']].apply(lambda x: '-'.join(x.values.astype(str)), axis=1).map(
                 map_df['index'].drop_duplicates()
             )
-    return backup_tables
+        return backup_tables
 
 if __name__ == '__main__':
     # np.random.seed(2321)
@@ -189,7 +191,11 @@ if __name__ == '__main__':
             FILES_PATH / "tables-raw-parquet" / f"{table_name}.parquet", 
             index=True
         )
-        logger.info(f"Saved table {table_name}, {len(tables_dict[table_name])} records")
+        logger.info(
+            f"Saved table {table_name} to " + \
+            f"{FILES_PATH / 'tables-raw-parquet' / f"{table_name}.parquet"}," +\
+            f"{len(tables_dict[table_name])} records"
+        )
         tables_summary += f"{table_name}\n"
         tables_summary += tables_dict[table_name].describe(include='all').T.to_string()
         tables_summary += "\n\n"
@@ -197,4 +203,4 @@ if __name__ == '__main__':
     tables_dict['Farm'][['COFINCA']].to_csv(output_path / "cofincas.csv", index=True)
     with open(output_path / "raw-parquets-summary.txt", "w") as f:
         f.write(tables_summary)
-    print()
+    logger.info('Done!')

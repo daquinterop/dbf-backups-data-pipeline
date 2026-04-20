@@ -8,5 +8,6 @@ dependencies = [
     "dbfread>=2.0.7",
     "fastparquet>=2026.3.0",
     "pandas>=3.0.2",
+    "polyfuzz>=0.4.3",
     "pyarrow>=23.0.1",
 ]
